@@ -125,10 +125,5 @@ dmypy.json
 
 
 # Personal ignored files
-*.html
-HtmlCodes/
-!website/index.html
-!project/**/*.html
-**/*.txt
-**/*.mp4
-!**/requirements.*
+CoralReefs.jpg
+**/*.xlsx
