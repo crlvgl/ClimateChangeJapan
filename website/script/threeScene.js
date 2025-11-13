@@ -204,6 +204,7 @@ export const modelLoadedPromise = new Promise(resolve => { _modelLoadedResolve =
 export function initThree(containerId = 'three-container') {
     const threeContainer = document.getElementById(containerId);
     scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x00314d);
     camera = new THREE.PerspectiveCamera(75, threeContainer.clientWidth / threeContainer.clientHeight, 0.1, 1000);
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.outputEncoding = THREE.sRGBEncoding;

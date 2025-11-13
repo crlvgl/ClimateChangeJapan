@@ -5,8 +5,8 @@ html, body {
 
 body {
     margin: 0;
-    font-family: system-ui, sans-serif;
-    background-color: #f9f9f9;
+    font-family: Helvetica, system-ui, sans-serif;
+    background-color: #454545;
 }
 
 /* Top 3D scene occupies roughly 2/3 of the viewport */

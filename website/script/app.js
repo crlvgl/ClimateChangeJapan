@@ -15,7 +15,7 @@ const margin = { top: 20, right: 30, bottom: 30, left: 40 };
 const innerWidth = width - margin.left - margin.right;
 const innerHeight = height - margin.top - margin.bottom;
 
-let xScale, yScale, line, focusCircle, pathElem, xAxisGroup, yAxisGroup, g;
+let xScale, yScale, line, focusCircle, pathElem, xAxisGroup, yAxisGroup, g, primaryKey;
 let csvData = [];
 
 const groupSpecies = ['Tuna fish', 'Horse mackerel', 'Sardines', 'Bonito', 'Salmon', 'Mackerel', 'Saury', 'Sea bream', 'Yellowtail', 'Cuttlefish', 'Octopus', 'Prawns', 'Short-necked clams', 'Oysters', 'Scallops'];
@@ -23,9 +23,10 @@ const groupSpecies = ['Tuna fish', 'Horse mackerel', 'Sardines', 'Bonito', 'Salm
 function buildGraph(dataRows) {
     g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
     xScale = d3.scaleLinear().domain(d3.extent(dataRows, d => d.Year)).range([0, innerWidth]);
-    const primary = groupSpecies[0];
-    yScale = d3.scaleLinear().domain([0, d3.max(dataRows, d => d[primary])]).range([innerHeight, 0]);
-    line = d3.line().x(d => xScale(d.Year)).y(d => yScale(d[primary]));
+    // choose the primary column used for the main plotted line
+    primaryKey = (dataRows && dataRows.length && Object.prototype.hasOwnProperty.call(dataRows[0], 'Median')) ? 'Median' : groupSpecies[0];
+    yScale = d3.scaleLinear().domain([0, d3.max(dataRows, d => d[primaryKey])]).range([innerHeight, 0]);
+    line = d3.line().x(d => xScale(d.Year)).y(d => yScale(d[primaryKey]));
     pathElem = g.append('path').datum(dataRows).attr('fill', 'none').attr('stroke', '#0077ff').attr('stroke-width', 2).attr('d', line);
     xAxisGroup = g.append('g').attr('transform', `translate(0,${innerHeight})`).call(d3.axisBottom(xScale).tickFormat(d3.format('d')));
     yAxisGroup = g.append('g').call(d3.axisLeft(yScale));
@@ -39,7 +40,14 @@ function updateVisualization(year) {
     yearLabel.textContent = year;
     const point = csvData.find(d => d.Year === +year);
     if (point && xScale && yScale) {
-        focusCircle.attr('cx', xScale(point.Year)).attr('cy', yScale(point[groupSpecies[0]])).style('opacity', 1);
+        // use the same primaryKey used to draw the main line; fall back to the first species if missing
+        const key = primaryKey || groupSpecies[0];
+        const yVal = point[key] !== undefined ? point[key] : (point[groupSpecies[0]] !== undefined ? point[groupSpecies[0]] : null);
+        if (yVal !== null) {
+            focusCircle.attr('cx', xScale(point.Year)).attr('cy', yScale(yVal)).style('opacity', 1);
+        } else {
+            focusCircle.style('opacity', 0);
+        }
     }
 
     // highlight the other graphs
