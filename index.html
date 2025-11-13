@@ -188,7 +188,7 @@
                 // compute an initial per-group value; small offset so labels differ
                 const factor = 1 + (gi - (numGroups - 1) / 2) * 0.2; // e.g., 0.8,1.0,1.2 for 3 groups
                 const val = Math.round(initialBaseValue * factor);
-                const { texture } = createTextTexture(String(val));
+                const { texture } = createTextTexture(String(val + "¥"));
                 const material = new THREE.SpriteMaterial({ map: texture, depthTest: false });
                 groups.push({ id: gi, value: val, material, texture });
             }
@@ -206,7 +206,7 @@
                     try { g.texture.dispose(); } catch (e) { /* ignore */ }
                 }
 
-                const { texture } = createTextTexture(newText);
+                const { texture } = createTextTexture(newText + "¥");
                 g.texture = texture;
                 // assign new map and mark for update
                 g.material.map = texture;
@@ -485,6 +485,7 @@
         // =========================
         // D3.JS GRAPH SETUP
         // =========================
+        // D3 graph variables (will be initialized after CSV load)
         const svg = d3.select("#graph");
         const width = svg.node().clientWidth;
         const height = svg.node().clientHeight;
@@ -492,44 +493,54 @@
         const innerWidth = width - margin.left - margin.right;
         const innerHeight = height - margin.top - margin.bottom;
 
-        const g = svg.append("g")
-            .attr("transform", `translate(${margin.left},${margin.top})`);
+        // place-holder group for chart elements; actual content added in buildGraph()
+        let xScale, yScale, line, focusCircle, pathElem, xAxisGroup, yAxisGroup, g;
 
-        const data = Array.from({ length: 45 }, (_, i) => ({
-            year: 1979 + i,
-            value: Math.random() * 100
-        }));
+        // CSV data will be stored here after loading and parsing
+        let csvData = [];
 
-        const xScale = d3.scaleLinear()
-            .domain(d3.extent(data, d => d.year))
-            .range([0, innerWidth]);
+        // Map each group index to a species name from the CSV header.
+        // Adjust this list if you want different species per group.
+        const groupSpecies = ['Tuna fish', 'Horse mackerel', 'Sardines', 'Bonito', 'Salmon', 'Mackerel', 'Saury', 'Sea bream', 'Yellowtail', 'Cuttlefish', 'Octopus', 'Prawns', 'Short-necked clams', 'Oysters', 'Scallops'];
 
-        const yScale = d3.scaleLinear()
-            .domain([0, d3.max(data, d => d.value)])
-            .range([innerHeight, 0]);
+        function buildGraph(dataRows) {
+            // Build scales and axes based on parsed CSV rows (use first species for y-range)
+            g = svg.append("g")
+                .attr("transform", `translate(${margin.left},${margin.top})`);
 
-        const line = d3.line()
-            .x(d => xScale(d.year))
-            .y(d => yScale(d.value));
+            xScale = d3.scaleLinear()
+                .domain(d3.extent(dataRows, d => d.Year))
+                .range([0, innerWidth]);
 
-        g.append("path")
-            .datum(data)
-            .attr("fill", "none")
-            .attr("stroke", "#0077ff")
-            .attr("stroke-width", 2)
-            .attr("d", line);
+            // use the first mapped species to determine y domain for the visible line
+            const primary = groupSpecies[0];
+            yScale = d3.scaleLinear()
+                .domain([0, d3.max(dataRows, d => d[primary])])
+                .range([innerHeight, 0]);
 
-        g.append("g")
-            .attr("transform", `translate(0,${innerHeight})`)
-            .call(d3.axisBottom(xScale).tickFormat(d3.format("d")));
+            line = d3.line()
+                .x(d => xScale(d.Year))
+                .y(d => yScale(d[primary]));
 
-        g.append("g")
-            .call(d3.axisLeft(yScale));
+            pathElem = g.append("path")
+                .datum(dataRows)
+                .attr("fill", "none")
+                .attr("stroke", "#0077ff")
+                .attr("stroke-width", 2)
+                .attr("d", line);
 
-        const focusCircle = g.append("circle")
-            .attr("r", 5)
-            .attr("fill", "red")
-            .style("opacity", 0);
+            xAxisGroup = g.append("g")
+                .attr("transform", `translate(0,${innerHeight})`)
+                .call(d3.axisBottom(xScale).tickFormat(d3.format("d")));
+
+            yAxisGroup = g.append("g")
+                .call(d3.axisLeft(yScale));
+
+            focusCircle = g.append("circle")
+                .attr("r", 5)
+                .attr("fill", "red")
+                .style("opacity", 0);
+        }
 
         // =========================
         // SLIDER INTERACTION
@@ -541,35 +552,35 @@
             yearLabel.textContent = year;
 
             // --- D3 Update ---
-            const point = data.find(d => d.year === +year);
-            if (point) {
+            const point = csvData.find(d => d.Year === +year);
+            if (point && xScale && yScale) {
+                // For the graph we display the primary species (groupSpecies[0])
                 focusCircle
-                    .attr("cx", xScale(point.year))
-                    .attr("cy", yScale(point.value))
+                    .attr("cx", xScale(point.Year))
+                    .attr("cy", yScale(point[groupSpecies[0]]))
                     .style("opacity", 1);
             }
 
             // --- Three.js Update ---
-            const minYear = 2000;
-            const maxYear = 2025;
+            // determine cube count based on full CSV year range
+            const minYear = csvData.length ? d3.min(csvData, d => d.Year) : 2000;
+            const maxYear = csvData.length ? d3.max(csvData, d => d.Year) : 2025;
             const maxCubes = 100;
-            const yearFraction = (year - minYear) / (maxYear - minYear);
+            const yearFraction = (year - minYear) / Math.max(1, (maxYear - minYear));
             const cubeCount = Math.max(5, Math.floor(maxCubes * (1 - yearFraction))); // fewer cubes over time
 
-            // initialize groups (if not already) using the current data point as a base
-            const baseValue = point ? point.value : 0;
-            initGroups(baseValue);
-
-            // compute per-group displayed values. We apply a small scaling offset per group so groups differ.
+            // initialize groups if necessary and set labels using CSV values for the selected year
+            // For each group, pick the corresponding species name from `groupSpecies`
             const groupValues = [];
             for (let gi = 0; gi < numGroups; gi++) {
-                const factor = 1 + (gi - (numGroups - 1) / 2) * 0.2; // symmetric factors around 1
-                const val = Math.round(baseValue * factor);
+                const species = groupSpecies[gi] || groupSpecies[0];
+                const val = point ? (+point[species] || 0) : 0;
                 groupValues.push(val);
             }
 
-            // update group label textures so sprites show the correct numbers
-            updateGroupLabels(groupValues);
+            // ensure materials/textures exist
+            initGroups(groupValues[0] || 0);
+            updateGroupLabels(groupValues.map(v => String(v)));
 
             createCubes(cubeCount);
 
@@ -582,8 +593,36 @@
             updateVisualization(year);
         });
 
-        // Initialize
-        updateVisualization(+slider.value);
+        // Load CSV and initialize graph + slider
+        d3.csv('EstimatedFishPricesByYear.csv', d => {
+            // parse numeric values
+            const parsed = { Year: +d.Year };
+            Object.keys(d).forEach(k => {
+                if (k === 'Year') return;
+                parsed[k] = d[k] === undefined || d[k] === '' ? 0 : +d[k];
+            });
+            return parsed;
+        }).then(rows => {
+            csvData = rows;
+            if (!csvData || csvData.length === 0) {
+                console.warn('CSV loaded but empty. Keeping placeholder graph.');
+                return;
+            }
+
+            // build the D3 graph now that we have data
+            buildGraph(csvData);
+
+            // set slider min/max/value from CSV year range
+            const minY = d3.min(csvData, d => d.Year);
+            const maxY = d3.max(csvData, d => d.Year);
+            slider.min = minY;
+            slider.max = maxY;
+            slider.value = minY;
+            // initialize visualization for starting year
+            updateVisualization(+slider.value);
+        }).catch(err => {
+            console.error('Failed to load CSV:', err);
+        });
     </script>
 </body>
 </html>
