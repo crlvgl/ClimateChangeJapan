@@ -23,7 +23,13 @@
 <body>
 
     <!-- 3D Scene -->
-    <div id="three-container"></div>
+    <div id="three-container">
+        <!-- Slider overlayed on the bottom edge of the 3D scene -->
+        <div id="slider-overlay">
+            <label for="year-slider">Year: <span id="year-label">2000</span></label>
+            <input type="range" id="year-slider" min="1979" max="2023" value="1979" step="1">
+        </div>
+    </div>
 
     <!-- Graphs row: three panels side-by-side -->
     <div class="graphs-row">
@@ -41,11 +47,7 @@
         </div>
     </div>
 
-    <!-- Slider -->
-    <div id="slider-container">
-        <label for="year-slider">Year: <span id="year-label">2000</span></label>
-        <input type="range" id="year-slider" min="1979" max="2023" value="1979" step="1">
-    </div>
+    <!-- (Slider moved into the 3D scene for overlay) -->
 
     <script type="module" src="script/app.js"></script>
 </body>

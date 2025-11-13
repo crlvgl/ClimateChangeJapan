@@ -1,5 +1,6 @@
 html, body {
     height: 100%;
+    overflow: hidden;
 }
 
 body {
@@ -15,6 +16,9 @@ body {
     background: #22147eff;
     display: block;
 }
+
+/* make container a positioned parent for the overlay */
+#three-container { position: relative; overflow: hidden; }
 
 /* Bottom row: three graphs share the remaining ~34% */
 .graphs-row {
@@ -52,19 +56,81 @@ svg.panel-svg {
     display: block;
 }
 
-#slider-container {
-    width: 80%;
-    margin: 12px auto 24px auto;
-    text-align: center;
+#slider-overlay {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 12px;
+    width: min(88%, 960px);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 14px;
+    box-sizing: border-box;
+    border-radius: 999px;
+    background: rgba(20, 20, 28, 0.36);
+    color: #fff;
+    backdrop-filter: blur(6px) saturate(120%);
+    -webkit-backdrop-filter: blur(6px) saturate(120%);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+    pointer-events: auto;
 }
 
-input[type="range"] {
-    width: 100%;
+#slider-overlay label {
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.95);
+    white-space: nowrap;
 }
 
-#year-label {
-    font-weight: bold;
+#slider-overlay #year-label { font-weight: 700; margin-left: 6px; }
+
+#slider-overlay input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 420px;
+    max-width: calc(100% - 140px);
+    height: 14px;
+    background: transparent;
 }
+
+/* Track */
+#slider-overlay input[type="range"]::-webkit-slider-runnable-track {
+    height: 10px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, rgba(255,255,255,0.18), rgba(255,255,255,0.08));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+}
+#slider-overlay input[type="range"]::-moz-range-track {
+    height: 10px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, rgba(255,255,255,0.18), rgba(255,255,255,0.08));
+}
+
+/* Thumb */
+#slider-overlay input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 24px;
+    height: 24px;
+    margin-top: -7px; /* center the thumb on the track */
+    border-radius: 50%;
+    background: linear-gradient(180deg, #ffffff, #e6e6e6);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.35);
+    border: 2px solid rgba(255,255,255,0.9);
+}
+#slider-overlay input[type="range"]::-moz-range-thumb {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: linear-gradient(180deg, #ffffff, #e6e6e6);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.35);
+    border: 2px solid rgba(255,255,255,0.9);
+}
+
+/* Focus and hover */
+#slider-overlay input[type="range"]:focus { outline: none; }
+#slider-overlay input[type="range"]:hover::-webkit-slider-runnable-track { filter: brightness(1.06); }
+#slider-overlay input[type="range"]:active::-webkit-slider-thumb { transform: scale(1.03); }
 
 /* Highlight styles for seaTemp bars */
 .sea-bar.selected {
