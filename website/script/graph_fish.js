@@ -20,6 +20,7 @@ const labels = [
 let canvas, ctx;
 let fish = [];
 let selectedIndex = -1;
+let hoverIndex = -1;
 let rafId;
 
 function mapValue(value, inMin, inMax, outMin, outMax) {
@@ -44,14 +45,15 @@ function generateFish() {
     const barHeight = mapValue(data[i], 0, maxVal, 0, canvas.height / devicePixelRatio - 200);
     const barTop = canvas.height / devicePixelRatio - 100 - barHeight;
     const barBottom = canvas.height / devicePixelRatio - 100;
-    const numFish = Math.floor(mapValue(data[i], 0, maxVal, 2, 50));
+    // produce fewer, smaller and slightly slower fish
+    const numFish = Math.floor(mapValue(data[i], 0, maxVal, 1, 20));
 
     for (let j = 0; j < numFish; j++) {
       fish.push({
         x: margin + i * barWidth + Math.random() * barWidth * 0.7,
         baseY: barTop + 10 + Math.random() * (barBottom - barTop - 20),
-        amp: 5 + Math.random() * 10,
-        speed: 0.05 + Math.random() * 0.25,
+        amp: 3 + Math.random() * 6, // smaller vertical swim amplitude
+        speed: 0.02 + Math.random() * 0.12, // slightly slower
         phase: Math.random() * Math.PI * 2
       });
     }
@@ -86,8 +88,13 @@ function drawBars(margin, barWidth, maxVal) {
     const y = canvasH - 100 - barHeight;
     const x = margin + i * barWidth;
 
+    // When there's no slider-selected index, use hoverIndex for a subtle hover visual
     if (selectedIndex === -1) {
-      ctx.fillStyle = 'rgb(120,220,255)';
+      if (i === hoverIndex) {
+        ctx.fillStyle = 'rgb(80,200,240)';
+      } else {
+        ctx.fillStyle = 'rgb(120,220,255)';
+      }
     } else if (i === selectedIndex) {
       ctx.fillStyle = 'rgb(120,220,255)';
     } else {
@@ -112,7 +119,8 @@ function drawBars(margin, barWidth, maxVal) {
 }
 
 function drawFish(frame) {
-  ctx.font = '16px serif';
+  // smaller fish glyph so the visualization is less crowded
+  ctx.font = '12px serif';
   for (const f of fish) {
     const y = f.baseY + Math.sin(frame * f.speed + f.phase) * f.amp;
     ctx.fillText('🐟', f.x, y);
@@ -187,10 +195,11 @@ export function initFish(canvasId) {
     if (x > margin && x < rect.width - margin) {
       let idx = Math.round(mapValue(x, margin, rect.width - margin, 0, data.length - 1));
       idx = Math.min(Math.max(idx, 0), data.length - 1);
-      selectedIndex = idx;
+      // only update hover visual — do NOT move the indicator line
+      hoverIndex = idx;
     }
   });
-  canvas.addEventListener('mouseleave', () => { selectedIndex = -1; });
+  canvas.addEventListener('mouseleave', () => { hoverIndex = -1; });
   loop();
 }
 
