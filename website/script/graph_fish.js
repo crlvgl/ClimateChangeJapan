@@ -1,5 +1,6 @@
 // graph_fish.js
-// Module that renders the fishCatch animated chart into a canvas and exposes highlight function
+// SVG-based version of the fish catch animated chart. Exposes the same API as before:
+// initFish(svgId), highlightFish(year), disposeFish()
 
 const data = [
   10590.4, 11121.8, 11318.7, 11388.1, 11967.3, 12815.9, 12171.3, 12738.9,
@@ -17,191 +18,221 @@ const labels = [
   2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023
 ];
 
-let canvas, ctx;
+let svgEl = null;
+let svgRect = null;
 let fish = [];
 let selectedIndex = -1;
 let hoverIndex = -1;
-let rafId;
+let rafId = null;
+
+// element groups
+let gGrid, gBars, gFish, gUI;
 
 function mapValue(value, inMin, inMax, outMin, outMax) {
   return ((value - inMin) * (outMax - outMin)) / (inMax - inMin) + outMin;
 }
 
+function clearChildren(node) {
+  while (node.firstChild) node.removeChild(node.firstChild);
+}
+
 function resize() {
-  if (!canvas) return;
-  // ensure a sensible default height so all graphs match approximately
-  if (!canvas.style.height || canvas.clientHeight === 0) canvas.style.height = '100%';
-  canvas.width = canvas.clientWidth * devicePixelRatio;
-  canvas.height = canvas.clientHeight * devicePixelRatio;
-  ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+  if (!svgEl) return;
+  svgRect = svgEl.getBoundingClientRect();
+  // set viewBox to match current pixel size so 1 unit == 1px
+  svgEl.setAttribute('viewBox', `0 0 ${Math.max(1, Math.floor(svgRect.width))} ${Math.max(1, Math.floor(svgRect.height))}`);
   generateFish();
 }
 
 function generateFish() {
   fish = [];
-  const margin = canvas.width * 0.08 / devicePixelRatio;
-  const barWidth = (canvas.width / devicePixelRatio - 2 * margin) / data.length;
+  if (!svgRect) svgRect = svgEl.getBoundingClientRect();
+  const margin = svgRect.width * 0.08;
+  const barWidth = (svgRect.width - 2 * margin) / data.length;
   const maxVal = Math.max(...data);
 
+  // remove existing bar/fish elements and recreate groups
+  clearChildren(gBars);
+  clearChildren(gFish);
+
+  // create bar rects
   for (let i = 0; i < data.length; i++) {
-    const barHeight = mapValue(data[i], 0, maxVal, 0, canvas.height / devicePixelRatio - 200);
-    const barTop = canvas.height / devicePixelRatio - 100 - barHeight;
-    const barBottom = canvas.height / devicePixelRatio - 100;
-    // produce fewer, smaller and slightly slower fish
-    const numFish = Math.floor(mapValue(data[i], 0, maxVal, 1, 20));
-
-    for (let j = 0; j < numFish; j++) {
-      fish.push({
-        x: margin + i * barWidth + Math.random() * barWidth * 0.7,
-        baseY: barTop + 10 + Math.random() * (barBottom - barTop - 20),
-        amp: 3 + Math.random() * 6, // smaller vertical swim amplitude
-        speed: 0.02 + Math.random() * 0.12, // slightly slower
-        phase: Math.random() * Math.PI * 2
-      });
-    }
-  }
-}
-
-function drawAxis(margin, maxVal) {
-  const canvasW = canvas.width / devicePixelRatio;
-  const canvasH = canvas.height / devicePixelRatio;
-  // white axes and labels
-  ctx.strokeStyle = 'rgba(255,255,255,0.9)';
-  ctx.fillStyle = '#fff';
-  ctx.font = '12px sans-serif';
-  ctx.textAlign = 'right';
-  ctx.textBaseline = 'middle';
-  const step = 3000;
-
-  for (let v = 0; v <= maxVal; v += step) {
-    const y = mapValue(v, 0, maxVal, canvasH - 100, 100);
-    ctx.beginPath();
-    // dotted horizontal grid line
-    ctx.save();
-    ctx.setLineDash([4, 4]);
-    ctx.moveTo(margin - 5, y);
-    ctx.lineTo(canvasW - margin, y);
-    ctx.stroke();
-    ctx.restore();
-    ctx.fillText(v.toFixed(0), margin - 10, y);
-  }
-}
-
-function drawBars(margin, barWidth, maxVal) {
-  const canvasW = canvas.width / devicePixelRatio;
-  const canvasH = canvas.height / devicePixelRatio;
-  for (let i = 0; i < data.length; i++) {
-    const barHeight = mapValue(data[i], 0, maxVal, 0, canvasH - 200);
-    const y = canvasH - 100 - barHeight;
+    const barHeight = mapValue(data[i], 0, maxVal, 0, svgRect.height - 200);
+    const y = svgRect.height - 100 - barHeight;
     const x = margin + i * barWidth;
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('x', x);
+    rect.setAttribute('y', y);
+    rect.setAttribute('width', barWidth * 0.8);
+    rect.setAttribute('height', barHeight);
+    rect.setAttribute('fill', 'rgb(120,220,255)');
+    rect.setAttribute('stroke', 'black');
+    rect.setAttribute('stroke-width', '2');
+    rect.dataset.index = String(i);
+    gBars.appendChild(rect);
 
-    // When there's no slider-selected index, use hoverIndex for a subtle hover visual
-    if (selectedIndex === -1) {
-      if (i === hoverIndex) {
-        ctx.fillStyle = 'rgb(80,200,240)';
-      } else {
-        ctx.fillStyle = 'rgb(120,220,255)';
-      }
-    } else if (i === selectedIndex) {
-      ctx.fillStyle = 'rgb(120,220,255)';
-    } else {
-      ctx.fillStyle = 'rgba(120,220,255,0.43)';
+    // year labels every 5 years
+    if (labels[i] % 5 === 0) {
+      const lbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      lbl.setAttribute('x', x + barWidth * 0.4);
+      lbl.setAttribute('y', svgRect.height - 80);
+      lbl.setAttribute('fill', '#fff');
+      lbl.setAttribute('font-size', '10');
+      lbl.setAttribute('text-anchor', 'end');
+      lbl.setAttribute('transform', `rotate(-60 ${x + barWidth * 0.4} ${svgRect.height - 80})`);
+      lbl.textContent = labels[i];
+      gBars.appendChild(lbl);
     }
 
-    ctx.strokeStyle = 'black';
-    ctx.lineWidth = 2;
-    ctx.fillRect(x, y, barWidth * 0.8, barHeight);
-    ctx.strokeRect(x, y, barWidth * 0.8, barHeight);
-
-    // year label — only every 5 years for parity with other graphs
-    if (labels[i] % 5 === 0) {
-      ctx.save();
-      ctx.translate(x + barWidth * 0.4, canvasH - 80);
-      ctx.rotate(-Math.PI / 3);
-      ctx.textAlign = 'right';
-      ctx.fillStyle = '#fff';
-      ctx.font = '10px sans-serif';
-      ctx.fillText(labels[i], 0, 0);
-      ctx.restore();
+    // compute fish for this bar
+    const barTop = y;
+    const barBottom = svgRect.height - 100;
+    const numFish = Math.floor(mapValue(data[i], 0, maxVal, 1, 20));
+    for (let j = 0; j < numFish; j++) {
+      const fx = margin + i * barWidth + Math.random() * barWidth * 0.7;
+      const baseY = barTop + 10 + Math.random() * (barBottom - barTop - 20);
+      const f = {
+        x: fx,
+        baseY,
+        amp: 3 + Math.random() * 6,
+        speed: 0.02 + Math.random() * 0.12,
+        phase: Math.random() * Math.PI * 2,
+        el: null
+      };
+      const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      text.setAttribute('x', fx);
+      text.setAttribute('y', baseY);
+      text.setAttribute('fill', '#fff');
+      text.setAttribute('font-size', '12');
+      text.setAttribute('text-anchor', 'middle');
+      text.textContent = '🐟';
+      gFish.appendChild(text);
+      f.el = text;
+      fish.push(f);
     }
   }
 }
 
-function drawFish(frame) {
-  // smaller fish glyph so the visualization is less crowded
-  ctx.font = '12px serif';
+function drawGrid() {
+  clearChildren(gGrid);
+  const margin = svgRect.width * 0.08;
+  const maxVal = Math.max(...data);
+  const step = 3000;
+  for (let v = 0; v <= maxVal; v += step) {
+    const y = mapValue(v, 0, maxVal, svgRect.height - 100, 100);
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', margin - 5);
+    line.setAttribute('y1', y);
+    line.setAttribute('x2', svgRect.width - margin);
+    line.setAttribute('y2', y);
+    line.setAttribute('stroke', 'rgba(255,255,255,0.9)');
+    line.setAttribute('stroke-dasharray', '4 4');
+    gGrid.appendChild(line);
+
+    const lbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    lbl.setAttribute('x', margin - 10);
+    lbl.setAttribute('y', y);
+    lbl.setAttribute('fill', '#fff');
+    lbl.setAttribute('font-size', '12');
+    lbl.setAttribute('text-anchor', 'end');
+    lbl.setAttribute('dominant-baseline', 'middle');
+    lbl.textContent = v.toFixed(0);
+    gGrid.appendChild(lbl);
+  }
+}
+
+function updateVisuals(frame = 0) {
+  if (!svgEl) return;
+  const margin = svgRect.width * 0.08;
+  const barWidth = (svgRect.width - 2 * margin) / data.length;
+  const maxVal = Math.max(...data);
+
+  // update bar fills
+  const rects = Array.from(gBars.querySelectorAll('rect'));
+  for (const r of rects) {
+    const i = Number(r.dataset.index);
+    if (selectedIndex === -1) {
+      if (i === hoverIndex) r.setAttribute('fill', 'rgb(80,200,240)'); else r.setAttribute('fill', 'rgb(120,220,255)');
+      r.setAttribute('opacity', '1');
+    } else if (i === selectedIndex) {
+      r.setAttribute('fill', 'rgb(120,220,255)'); r.setAttribute('opacity', '1');
+    } else {
+      r.setAttribute('fill', 'rgba(120,220,255,0.43)'); r.setAttribute('opacity', '0.6');
+    }
+  }
+
+  // update fish positions
   for (const f of fish) {
     const y = f.baseY + Math.sin(frame * f.speed + f.phase) * f.amp;
-    ctx.fillText('🐟', f.x, y);
+    f.el.setAttribute('y', String(y));
   }
-}
 
-function drawText(margin, maxVal) {
-  const canvasW = canvas.width / devicePixelRatio;
-  const canvasH = canvas.height / devicePixelRatio;
-  ctx.fillStyle = '#fff';
-  ctx.font = '16px sans-serif';
-  ctx.save();
-  ctx.translate(margin - 70, canvasH / 2);
-  ctx.rotate(-Math.PI / 2);
-  ctx.restore();
-}
-
-function loop(frame = 0) {
-  if (!canvas) return;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  const margin = canvas.width * 0.08 / devicePixelRatio;
-  const barWidth = (canvas.width / devicePixelRatio - 2 * margin) / data.length;
-  const maxVal = Math.max(...data);
-
-  drawAxis(margin, maxVal);
-  drawBars(margin, barWidth, maxVal);
-  drawFish(frame);
-  drawText(margin, maxVal);
-
+  // update UI: selected value and vertical line
+  clearChildren(gUI);
   if (selectedIndex !== -1) {
     const selectedValue = data[selectedIndex];
-    // value indicator (top-right) — white and concise
-    ctx.fillStyle = '#fff';
-    ctx.font = '14px sans-serif';
-    ctx.textAlign = 'right';
-    const canvasW = canvas.width / devicePixelRatio;
-    ctx.fillText(`${selectedValue.toFixed(0)}k t`, canvasW - margin - 240, 80);
+    const valueText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    valueText.setAttribute('x', svgRect.width - margin - 240);
+    valueText.setAttribute('y', 80);
+    valueText.setAttribute('fill', '#fff');
+    valueText.setAttribute('font-size', '14');
+    valueText.setAttribute('text-anchor', 'end');
+    valueText.textContent = `${selectedValue.toFixed(0)}k t`;
+    gUI.appendChild(valueText);
 
-    ctx.strokeStyle = 'rgb(255,100,100)';
-    ctx.lineWidth = 3;
     const x = margin + selectedIndex * barWidth + barWidth * 0.4;
-    ctx.beginPath();
-    ctx.moveTo(x, 100);
-    ctx.lineTo(x, canvas.height / devicePixelRatio - 100);
-    ctx.stroke();
+    const vline = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    vline.setAttribute('x1', x);
+    vline.setAttribute('y1', 100);
+    vline.setAttribute('x2', x);
+    vline.setAttribute('y2', svgRect.height - 100);
+    vline.setAttribute('stroke', 'rgb(255,100,100)');
+    vline.setAttribute('stroke-width', '3');
+    gUI.appendChild(vline);
   }
 
-  rafId = requestAnimationFrame(() => loop(frame + 1));
+  rafId = requestAnimationFrame((t) => updateVisuals(frame + 1));
 }
 
-export function initFish(canvasId) {
-  canvas = document.getElementById(canvasId);
-  if (!canvas) return;
-  ctx = canvas.getContext('2d');
-  window.addEventListener('resize', resize);
-  resize();
-  // pointer hover to update selection by mouse (optional)
-  canvas.addEventListener('mousemove', (e) => {
-    const rect = canvas.getBoundingClientRect();
+export function initFish(svgId) {
+  svgEl = document.getElementById(svgId);
+  if (!svgEl) return;
+  // ensure this is treated as an SVG element
+  if (!(svgEl instanceof SVGElement)) return;
+
+  // create groups
+  clearChildren(svgEl);
+  gGrid = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  gBars = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  gFish = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  gUI = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  svgEl.appendChild(gGrid);
+  svgEl.appendChild(gBars);
+  svgEl.appendChild(gFish);
+  svgEl.appendChild(gUI);
+
+  // event handlers
+  function onPointerMove(e) {
+    const rect = svgEl.getBoundingClientRect();
     const margin = rect.width * 0.08;
     const barWidth = (rect.width - 2 * margin) / data.length;
     const x = e.clientX - rect.left;
     if (x > margin && x < rect.width - margin) {
       let idx = Math.round(mapValue(x, margin, rect.width - margin, 0, data.length - 1));
       idx = Math.min(Math.max(idx, 0), data.length - 1);
-      // only update hover visual — do NOT move the indicator line
       hoverIndex = idx;
+    } else {
+      hoverIndex = -1;
     }
-  });
-  canvas.addEventListener('mouseleave', () => { hoverIndex = -1; });
-  loop();
+  }
+
+  svgEl.addEventListener('pointermove', onPointerMove);
+  svgEl.addEventListener('pointerleave', () => { hoverIndex = -1; });
+
+  window.addEventListener('resize', resize);
+  resize();
+  drawGrid();
+  updateVisuals(0);
 }
 
 export function highlightFish(year) {
@@ -210,6 +241,12 @@ export function highlightFish(year) {
 }
 
 export function disposeFish() {
-  cancelAnimationFrame(rafId);
+  if (rafId) cancelAnimationFrame(rafId);
   window.removeEventListener('resize', resize);
+  if (svgEl) {
+    try { svgEl.removeEventListener('pointermove'); } catch (e) {}
+    try { svgEl.removeEventListener('pointerleave'); } catch (e) {}
+    clearChildren(svgEl);
+    svgEl = null;
+  }
 }

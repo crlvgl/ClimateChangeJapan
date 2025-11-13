@@ -90,7 +90,7 @@ svg.panel-svg {
     -webkit-appearance: none;
     appearance: none;
     width: 420px;
-    max-width: calc(100% - 140px);
+    max-width: calc(100% - 140px); 
     height: 14px;
     background: transparent;
 }
