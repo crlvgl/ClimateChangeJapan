@@ -1,49 +1,48 @@
 import pandas as pd
-from matplotlib import pyplot as plt
 
-df = pd.read_csv('FishPrice.csv', skiprows=10)
-df = df.drop(columns=["Area(2020-base) Auxiliary Code",
-                      "Time Auxiliary Code",
-                      "Items(2020-base) Auxiliary Code",
-                      "/Tabulated variable"])
+df = pd.read_csv('CleanedFishPrice.csv')
 
-# print(df.head())
-# df.info()
-areas = df['Area(2020-base)'].unique()
-items = df['Items(2020-base)'].unique()
-time = df['Time'].unique()
-# print(f"Areas: {areas}, count: {len(areas)}")
-# print(f"Items: {items}, count: {len(items)}")
-# print(f"Time: {time}", f"count: {len(time)}")
+fish_kinds = ["Tuna fish", "Horse mackerel", "Sardines",
+              "Bonito", "Salmon", "Mackerel", "Saury",
+              "Sea bream", "Yellowtail", "Cuttlefish",
+              "Octopus", "Prawns", "Short-necked clams",
+              "Oysters", "Scallops"]
+areas = ["Ku-area of Tokyo"]
 
-df = df.rename(columns={
-    "Area(2020-base)": "Area",
-    "Items(2020-base)": "Items",
-    "Change from the previous period (year, fiscal year, or month)[%]": "Change(%)"})
+small_df = df.loc[df['Items'].isin(fish_kinds) & df['Area'].isin(areas)].copy()
+small_df["Area"] = small_df["Area"].astype("str").str.strip()
+small_df["Items"] = small_df["Items"].astype("str").str.strip()
+small_df["Time"] = small_df["Time"].astype("int")
+small_df["Change(%)"] = small_df["Change(%)"].astype("float")
 
-cleaned_df = df[["Area", "Items", "Time", "Change(%)"]].copy().dropna()
+# print(small_df.head())
+# print(small_df.info())
+# print(small_df['Items'].unique(), len(small_df['Items'].unique()))
+# print(small_df['Area'].unique(), len(small_df['Area'].unique()))
 
-cleaned_df["Area"] = cleaned_df["Area"].astype("str")
-cleaned_df["Items"] = cleaned_df["Items"].astype("str")
-cleaned_df["Time"] = cleaned_df["Time"].astype("int")
+price_df = pd.read_csv('ConsumerPrice.csv', skiprows=1, names=["Fish", "Price"])
+price_df["Fish"] = price_df["Fish"].astype("str").str.strip()
+price_df["Price"] = price_df["Price"].astype("int")
 
-# Try to convert "Change(%)" to numeric, cleaning strings first
-col = cleaned_df["Change(%)"].astype(str).str.strip()
-col = col.str.replace('%', '', regex=False)
-col = col.str.replace(',', '', regex=False)
-col = col.str.replace(r"[^0-9.\-]", '', regex=True)
-cleaned_df["Change(%)"] = pd.to_numeric(col, errors='coerce')
+# print(price_df.head())
+# print(price_df.info())
 
-# num_non_convertible = cleaned_df["Change(%)"].isna().sum()
-# print(f"Non-convertible 'Change(%)' entries coerced to NaN: {num_non_convertible}")
+# print(price_df["Fish"].unique() == small_df['Items'].unique())
 
-# cleaned_df = cleaned_df.dropna(subset=["Change(%)"])
+prices_by_year = pd.DataFrame()
+prices_by_year['Year'] = range(1979, 2024)
 
-cleaned_df.info()
-print(cleaned_df.head())
-
-# nan_indexes = cleaned_df[cleaned_df["Change(%)"].isna()].index
-# for idx in nan_indexes:
-#     print(f"NaN at index: {idx}, row data original: {df.loc[idx, "Change(%)"]}, cleaned: {cleaned_df.iloc[idx].to_dict()}")
-
-cleaned_df.to_csv('CleanedFishPrice.csv', index=False)
+for year in range(2023, 1978, -1):
+    if year == 2023:
+        for fish in fish_kinds:
+            change_previous_year = 1 + (small_df.loc[(small_df['Time'] == year+1) & (small_df['Items'] == fish), 'Change(%)'].values[0] / 100)
+            prices_by_year.loc[prices_by_year['Year'] == year, fish] = price_df.loc[price_df['Fish'] == fish, 'Price'].values[0] / change_previous_year
+            # print(f"Year: {year}, Fish: {fish}, Price: {prices_by_year.loc[prices_by_year['Year'] == year, fish].values[0]:.2f}")
+    else:
+        for fish in fish_kinds:
+            change_previous_year = 1 + (small_df.loc[(small_df['Time'] == year+1) & (small_df['Items'] == fish), 'Change(%)'].values[0] / 100)
+            prices_by_year.loc[prices_by_year['Year'] == year, fish] = prices_by_year.loc[prices_by_year['Year'] == year+1, fish].values[0] / change_previous_year
+            # print(f"Year: {year}, Fish: {fish}, Price: {prices_by_year.loc[prices_by_year['Year'] == year, fish].values[0]:.2f}")
+prices_by_year = prices_by_year.round(0)
+print(prices_by_year)
+prices_by_year.to_csv('EstimatedFishPricesByYear.csv', index=False)
