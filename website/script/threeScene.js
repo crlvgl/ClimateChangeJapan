@@ -92,9 +92,9 @@ let cubes = [];
 let fishData = [];
 
 const swimBounds = {
-    x: [-10, 10],
-    y: [-5, 5],
-    z: [-10, 10]
+    x: [-90, 90],
+    y: [-22, 22],
+    z: [-5, 5]
 };
 const spawnFlipY = Math.PI;
 
@@ -217,12 +217,35 @@ export function initThree(containerId = 'three-container') {
     directLight.castShadow = true;
     scene.add(directLight);
 
-    camera.position.z = 5;
+    camera.position.z = 20;
     controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
+    // Disable orbiting and panning. We'll handle zoom on the world Z axis ourselves.
+    controls.enableRotate = false;
+    controls.enablePan = false;
+    controls.enableZoom = false; // prevent OrbitControls from altering camera distance
+    controls.enableDamping = false;
     controls.dampingFactor = 0.05;
     controls.target.set(0, 0, 0);
     controls.update();
+
+    // Keep camera z between these bounds when zooming
+    const _minCameraZ = 5;
+    const _maxCameraZ = 30;
+
+    // Ensure initial camera z is 20
+    camera.position.z = 20;
+
+    // Custom wheel handler: only change camera.position.z (world z-axis)
+    function _onWheelZoom(e) {
+        // prevent page scroll
+        e.preventDefault();
+        // deltaY > 0 -> scroll down -> zoom out (increase z)
+        const sensitivity = 0.02; // tweak for desired feel
+        const dz = e.deltaY * sensitivity;
+        camera.position.z = THREE.MathUtils.clamp(camera.position.z + dz, _minCameraZ, _maxCameraZ);
+    }
+    // Attach to renderer DOM element so interactions are limited to the 3D canvas
+    renderer.domElement.addEventListener('wheel', _onWheelZoom, { passive: false });
 
     // load model
     loader.load('3DModels/bluefin_tuna_gltf/scene.gltf', gltf => {
@@ -265,7 +288,8 @@ export function initThree(containerId = 'three-container') {
         fishModel.position.sub(center);
         const maxDim = Math.max(size.x, size.y, size.z);
         const fitDist = maxDim * 2.0 + 2.0;
-        camera.position.set(0, maxDim * 0.5, fitDist);
+        // Keep camera on world Z = 20 as requested; adjust X/Y to center on model
+        camera.position.set(0, maxDim * 0.5, 20);
         camera.near = 0.1;
         camera.far = Math.max(1000, fitDist * 10);
         camera.updateProjectionMatrix();
