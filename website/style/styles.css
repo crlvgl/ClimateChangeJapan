@@ -1,0 +1,40 @@
+body {
+    margin: 0;
+    font-family: system-ui, sans-serif;
+    background-color: #f9f9f9;
+}
+
+#three-container {
+    width: 100%;
+    height: 700px;
+    background: #22147eff;
+    display: block;
+}
+
+#graph-container {
+    width: 100%;
+    height: 400px;
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+svg {
+    width: 90%;
+    height: 100%;
+}
+
+#slider-container {
+    width: 80%;
+    margin: 20px auto;
+    text-align: center;
+}
+
+input[type="range"] {
+    width: 100%;
+}
+
+#year-label {
+    font-weight: bold;
+}
