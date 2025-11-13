@@ -9,13 +9,15 @@ initThree('three-container');
 
 // D3 graph variables
 const svg = d3.select('#graph');
-const width = svg.node().clientWidth;
-const height = svg.node().clientHeight;
+// ensure the SVG has a consistent height so graphs look similar
+svg.attr('height', 300);
+const width = svg.node().clientWidth || 600;
+const height = svg.node().clientHeight || 300;
 const margin = { top: 20, right: 30, bottom: 30, left: 40 };
-const innerWidth = width - margin.left - margin.right;
-const innerHeight = height - margin.top - margin.bottom;
+const innerWidth = Math.max(width - margin.left - margin.right, 300);
+const innerHeight = Math.max(height - margin.top - margin.bottom, 150);
 
-let xScale, yScale, line, focusCircle, pathElem, xAxisGroup, yAxisGroup, g, primaryKey;
+let xScale, yScale, line, focusCircle, pathElem, xAxisGroup, yAxisGroup, g, primaryKey, valueLabel;
 let csvData = [];
 
 const groupSpecies = ['Tuna fish', 'Horse mackerel', 'Sardines', 'Bonito', 'Salmon', 'Mackerel', 'Saury', 'Sea bream', 'Yellowtail', 'Cuttlefish', 'Octopus', 'Prawns', 'Short-necked clams', 'Oysters', 'Scallops'];
@@ -28,8 +30,24 @@ function buildGraph(dataRows) {
     yScale = d3.scaleLinear().domain([0, d3.max(dataRows, d => d[primaryKey])]).range([innerHeight, 0]);
     line = d3.line().x(d => xScale(d.Year)).y(d => yScale(d[primaryKey]));
     pathElem = g.append('path').datum(dataRows).attr('fill', 'none').attr('stroke', '#0077ff').attr('stroke-width', 2).attr('d', line);
-    xAxisGroup = g.append('g').attr('transform', `translate(0,${innerHeight})`).call(d3.axisBottom(xScale).tickFormat(d3.format('d')));
+    // x axis ticks every 5 years
+    const minY = d3.min(dataRows, d => d.Year);
+    const maxY = d3.max(dataRows, d => d.Year);
+    const tickYears = d3.range(minY, maxY + 1, 5);
+    xAxisGroup = g.append('g').attr('transform', `translate(0,${innerHeight})`).call(d3.axisBottom(xScale).tickValues(tickYears).tickFormat(d3.format('d')));
+    xAxisGroup.selectAll('path, line').attr('stroke', '#fff');
+    xAxisGroup.selectAll('text').attr('fill', '#fff').attr('transform', 'rotate(-45)').style('text-anchor', 'end');
+
     yAxisGroup = g.append('g').call(d3.axisLeft(yScale));
+    yAxisGroup.selectAll('path, line').attr('stroke', '#fff');
+    yAxisGroup.selectAll('text').attr('fill', '#fff');
+
+    // dotted horizontal grid
+    const grid = g.append('g').attr('class', 'grid').call(d3.axisLeft(yScale).tickSize(-innerWidth).tickFormat(''));
+    grid.selectAll('line').attr('stroke', '#fff').attr('stroke-dasharray', '4 4').attr('stroke-opacity', 1.0);
+    grid.selectAll('path').remove();
+    // value label (top-right)
+    valueLabel = g.append('text').attr('class', 'value-label').attr('x', innerWidth - 6).attr('y', -6).attr('text-anchor', 'end').attr('fill', '#fff').style('font-size', '14px');
     focusCircle = g.append('circle').attr('r', 5).attr('fill', 'red').style('opacity', 0);
 }
 
@@ -45,8 +63,10 @@ function updateVisualization(year) {
         const yVal = point[key] !== undefined ? point[key] : (point[groupSpecies[0]] !== undefined ? point[groupSpecies[0]] : null);
         if (yVal !== null) {
             focusCircle.attr('cx', xScale(point.Year)).attr('cy', yScale(yVal)).style('opacity', 1);
+            if (valueLabel) valueLabel.text(`${point.Year}: ${yVal}`);
         } else {
             focusCircle.style('opacity', 0);
+            if (valueLabel) valueLabel.text('');
         }
     }
 

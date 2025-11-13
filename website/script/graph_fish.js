@@ -29,6 +29,8 @@ function mapValue(value, inMin, inMax, outMin, outMax) {
 
 function resize() {
   if (!canvas) return;
+  // ensure a sensible default height so all graphs match approximately
+  if (!canvas.style.height || canvas.clientHeight === 0) canvas.style.height = '100%';
   canvas.width = canvas.clientWidth * devicePixelRatio;
   canvas.height = canvas.clientHeight * devicePixelRatio;
   ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
@@ -63,8 +65,9 @@ function generateFish() {
 function drawAxis(margin, maxVal) {
   const canvasW = canvas.width / devicePixelRatio;
   const canvasH = canvas.height / devicePixelRatio;
-  ctx.strokeStyle = '#666';
-  ctx.fillStyle = '#333';
+  // white axes and labels
+  ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+  ctx.fillStyle = '#fff';
   ctx.font = '12px sans-serif';
   ctx.textAlign = 'right';
   ctx.textBaseline = 'middle';
@@ -73,9 +76,13 @@ function drawAxis(margin, maxVal) {
   for (let v = 0; v <= maxVal; v += step) {
     const y = mapValue(v, 0, maxVal, canvasH - 100, 100);
     ctx.beginPath();
+    // dotted horizontal grid line
+    ctx.save();
+    ctx.setLineDash([4, 4]);
     ctx.moveTo(margin - 5, y);
     ctx.lineTo(canvasW - margin, y);
     ctx.stroke();
+    ctx.restore();
     ctx.fillText(v.toFixed(0), margin - 10, y);
   }
 }
@@ -106,15 +113,17 @@ function drawBars(margin, barWidth, maxVal) {
     ctx.fillRect(x, y, barWidth * 0.8, barHeight);
     ctx.strokeRect(x, y, barWidth * 0.8, barHeight);
 
-    // year label
-    ctx.save();
-    ctx.translate(x + barWidth * 0.4, canvasH - 80);
-    ctx.rotate(-Math.PI / 3);
-    ctx.textAlign = 'right';
-    ctx.fillStyle = '#222';
-    ctx.font = '10px sans-serif';
-    ctx.fillText(labels[i], 0, 0);
-    ctx.restore();
+    // year label — only every 5 years for parity with other graphs
+    if (labels[i] % 5 === 0) {
+      ctx.save();
+      ctx.translate(x + barWidth * 0.4, canvasH - 80);
+      ctx.rotate(-Math.PI / 3);
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#fff';
+      ctx.font = '10px sans-serif';
+      ctx.fillText(labels[i], 0, 0);
+      ctx.restore();
+    }
   }
 }
 
@@ -130,7 +139,7 @@ function drawFish(frame) {
 function drawText(margin, maxVal) {
   const canvasW = canvas.width / devicePixelRatio;
   const canvasH = canvas.height / devicePixelRatio;
-  ctx.fillStyle = '#333';
+  ctx.fillStyle = '#fff';
   ctx.font = '16px sans-serif';
   ctx.save();
   ctx.translate(margin - 70, canvasH / 2);
@@ -141,8 +150,6 @@ function drawText(margin, maxVal) {
 
   ctx.textAlign = 'center';
   ctx.fillText('Year', canvasW / 2, canvasH - 40);
-
-  ctx.font = '18px sans-serif';
 }
 
 function loop(frame = 0) {
@@ -161,11 +168,12 @@ function loop(frame = 0) {
   if (selectedIndex !== -1) {
     const selectedYear = labels[selectedIndex];
     const selectedValue = data[selectedIndex];
-    ctx.fillStyle = '#000';
-    ctx.font = '16px sans-serif';
+    // value indicator (top-right) — white and concise
+    ctx.fillStyle = '#fff';
+    ctx.font = '14px sans-serif';
     ctx.textAlign = 'left';
     const canvasW = canvas.width / devicePixelRatio;
-    ctx.fillText(`Year: ${selectedYear}, Fish Catch: ${selectedValue.toFixed(0)}000t`, canvasW - margin - 240, 80);
+    ctx.fillText(`Year: ${selectedYear} — ${selectedValue.toFixed(0)}k t`, canvasW - margin - 240, 80);
 
     ctx.strokeStyle = 'rgb(255,100,100)';
     ctx.lineWidth = 3;

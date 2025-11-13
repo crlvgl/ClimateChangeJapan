@@ -27,7 +27,7 @@ const data = [
   { year: 2023, temp: 1.10 }
 ];
 
-let svg; let x, y, width, height, margin;
+let svg; let x, y, width, height, margin; let valueLabel;
 
 export function initTemp(svgId) {
   svg = d3.select('#' + svgId);
@@ -36,11 +36,11 @@ export function initTemp(svgId) {
 
   margin = { top: 36, right: 20, bottom: 36, left: 44 };
   const rect = svg.node().getBoundingClientRect();
-  width = rect.width - margin.left - margin.right;
-  height = rect.height - margin.top - margin.bottom;
-
-  if (width <= 0) width = 300;
-  if (height <= 0) height = 150;
+  const targetHeight = Math.max(rect.height, 300);
+  // ensure svg has a sensible height so it matches the other visualizations
+  svg.attr('height', targetHeight);
+  width = Math.max(rect.width - margin.left - margin.right, 300);
+  height = targetHeight - margin.top - margin.bottom;
 
   const g = svg
     .attr('width', width + margin.left + margin.right)
@@ -54,18 +54,25 @@ export function initTemp(svgId) {
 
   const color = d3.scaleSequential().domain([yMax, -yMax]).interpolator(d3.interpolateRdBu);
 
-  g.append('g')
-    .attr('transform', `translate(0,${height/2})`)
-    .call(d3.axisBottom(x).tickValues(x.domain().filter((d, i) => !(i % 2))))
-    .selectAll('text')
-    .attr('transform', 'rotate(-45)').style('text-anchor', 'end');
+  // x axis showing only every 5 years — place at bottom of chart
+  const tickYears = data.map(d => d.year).filter(y => y % 5 === 0);
+  const xAxis = g.append('g')
+    .attr('transform', `translate(0,${height})`)
+    .call(d3.axisBottom(x).tickValues(tickYears).tickFormat(d3.format('d')));
+  xAxis.selectAll('text').attr('transform', 'rotate(-45)').style('text-anchor', 'end').attr('fill', '#fff');
 
-  g.append('g').call(d3.axisLeft(y));
+  // make axis lines white
+  xAxis.selectAll('path, line').attr('stroke', '#fff');
 
-  g.append('g')
+  const yAxis = g.append('g').call(d3.axisLeft(y));
+  yAxis.selectAll('path, line').attr('stroke', '#fff');
+  yAxis.selectAll('text').attr('fill', '#fff');
+
+  // dotted horizontal grid lines
+  const grid = g.append('g')
     .attr('class', 'grid')
-    .call(d3.axisLeft(y).tickSize(-width).tickFormat(''))
-    .attr('stroke-opacity', 0.2);
+    .call(d3.axisLeft(y).tickSize(-width).tickFormat(''));
+  grid.selectAll('line').attr('stroke', '#fff').attr('stroke-dasharray', '4 4').attr('stroke-opacity', 1.0);
 
   // tooltip
   const tooltip = d3.select('body').selectAll('.tooltip').data([0]);
@@ -93,11 +100,15 @@ export function initTemp(svgId) {
   g.append('text')
     .attr('x', width / 2).attr('y', -10)
     .attr('class', 'title')
-    // .text('Sea Surface Temperature Changes (1979–2023)');
+    // .text('Sea Surface Temperature Changes (1979–2023)')
+    .attr('fill', '#fff');
 
   // axis labels
-  g.append('text').attr('x', width / 2).attr('y', height + 40).attr('text-anchor', 'middle').text('Year');
-  g.append('text').attr('transform', 'rotate(-90)').attr('x', -height / 2).attr('y', -34).attr('text-anchor', 'middle').text('Sea Temperature (°C)');
+  g.append('text').attr('x', width / 2).attr('y', height + 40).attr('text-anchor', 'middle').attr('fill', '#fff').text('Year');
+  g.append('text').attr('transform', 'rotate(-90)').attr('x', -height / 2).attr('y', -34).attr('text-anchor', 'middle').attr('fill', '#fff').text('Sea Temperature (°C)');
+
+  // value label (top-right)
+  valueLabel = g.append('text').attr('class', 'value-label').attr('x', width - 6).attr('y', -6).attr('text-anchor', 'end').attr('fill', '#fff').style('font-size', '14px');
 
   // tooltip
   const tooltip2 = d3.select('body').selectAll('.tooltip').data([0]);
@@ -110,4 +121,10 @@ export function highlightTemp(year) {
   const yInt = +year;
   svg.selectAll('.sea-bar').classed('selected', false);
   svg.selectAll('.sea-bar').filter(d => d.year === yInt).classed('selected', true).raise();
+  // update top-right value label
+  if (valueLabel) {
+    const found = data.find(d => d.year === yInt);
+    if (found) valueLabel.text(`${found.year}: ${found.temp.toFixed(2)} °C`);
+    else valueLabel.text('');
+  }
 }

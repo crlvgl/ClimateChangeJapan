@@ -41,6 +41,7 @@ body {
     margin: 4px 0 6px 0;
     font-size: 14px;
     text-align: center;
+    color: #fff;
 }
 
 .panel-svg, .panel-canvas {
