@@ -35,16 +35,17 @@ function buildGraph(dataRows) {
     const maxY = d3.max(dataRows, d => d.Year);
     const tickYears = d3.range(minY, maxY + 1, 5);
     xAxisGroup = g.append('g').attr('transform', `translate(0,${innerHeight})`).call(d3.axisBottom(xScale).tickValues(tickYears).tickFormat(d3.format('d')));
-    xAxisGroup.selectAll('path, line').attr('stroke', '#fff');
-    xAxisGroup.selectAll('text').attr('fill', '#fff').attr('transform', 'rotate(-45)').style('text-anchor', 'end');
+    xAxisGroup.selectAll('path, line').style('opacity', 0);
+    xAxisGroup.selectAll('text').attr('fill', '#fff').attr('transform', null).style('text-anchor', 'middle');
 
     yAxisGroup = g.append('g').call(d3.axisLeft(yScale));
-    yAxisGroup.selectAll('path, line').attr('stroke', '#fff');
+    yAxisGroup.selectAll('path, line').style('opacity', 0);
     yAxisGroup.selectAll('text').attr('fill', '#fff');
 
     // dotted horizontal grid
     const grid = g.append('g').attr('class', 'grid').call(d3.axisLeft(yScale).tickSize(-innerWidth).tickFormat(''));
-    grid.selectAll('line').attr('stroke', '#fff').attr('stroke-dasharray', '4 4').attr('stroke-opacity', 1.0);
+    // dotted grid with reduced opacity
+    grid.selectAll('line').attr('stroke', '#fff').attr('stroke-dasharray', '1 3').attr('stroke-opacity', 0.5);
     grid.selectAll('path').remove();
     // value label (top-right)
     valueLabel = g.append('text').attr('class', 'value-label').attr('x', innerWidth - 6).attr('y', -6).attr('text-anchor', 'end').attr('fill', '#fff').style('font-size', '14px');

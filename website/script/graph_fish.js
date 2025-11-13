@@ -27,6 +27,14 @@ let rafId = null;
 
 // element groups
 let gGrid, gBars, gFish, gUI;
+// layout
+let margin = { top: 36, right: 20, bottom: 36, left: 44 };
+let innerWidth = 0;
+let innerHeight = 0;
+let targetHeight = 300;
+// stored handlers for clean removal
+let pointerMoveHandler = null;
+let pointerLeaveHandler = null;
 
 function mapValue(value, inMin, inMax, outMin, outMax) {
   return ((value - inMin) * (outMax - outMin)) / (inMax - inMin) + outMin;
@@ -39,16 +47,26 @@ function clearChildren(node) {
 function resize() {
   if (!svgEl) return;
   svgRect = svgEl.getBoundingClientRect();
-  // set viewBox to match current pixel size so 1 unit == 1px
-  svgEl.setAttribute('viewBox', `0 0 ${Math.max(1, Math.floor(svgRect.width))} ${Math.max(1, Math.floor(svgRect.height))}`);
+  // ensure a sensible height to match other charts
+  targetHeight = Math.max(svgRect.height, 300);
+  svgEl.setAttribute('height', String(targetHeight));
+  svgEl.setAttribute('width', String(Math.max(1, Math.floor(svgRect.width))));
+  innerWidth = Math.max(svgRect.width - margin.left - margin.right, 300);
+  innerHeight = Math.max(targetHeight - margin.top - margin.bottom, 150);
+  // apply transforms to groups so children can render in inner coords
+  if (gGrid) gGrid.setAttribute('transform', `translate(${margin.left},${margin.top})`);
+  if (gBars) gBars.setAttribute('transform', `translate(${margin.left},${margin.top})`);
+  if (gFish) gFish.setAttribute('transform', `translate(${margin.left},${margin.top})`);
+  if (gUI) gUI.setAttribute('transform', `translate(${margin.left},${margin.top})`);
   generateFish();
 }
 
 function generateFish() {
   fish = [];
   if (!svgRect) svgRect = svgEl.getBoundingClientRect();
-  const margin = svgRect.width * 0.08;
-  const barWidth = (svgRect.width - 2 * margin) / data.length;
+  const slotWidth = innerWidth / data.length;
+  const paddingFactor = 0.12; // similar to other graphs' band padding
+  const barWidth = Math.max(2, slotWidth * (1 - paddingFactor));
   const maxVal = Math.max(...data);
 
   // remove existing bar/fish elements and recreate groups
@@ -57,13 +75,14 @@ function generateFish() {
 
   // create bar rects
   for (let i = 0; i < data.length; i++) {
-    const barHeight = mapValue(data[i], 0, maxVal, 0, svgRect.height - 200);
-    const y = svgRect.height - 100 - barHeight;
-    const x = margin + i * barWidth;
+    const barHeight = mapValue(data[i], 0, maxVal, 0, innerHeight);
+    const y = innerHeight - barHeight;
+    const xSlot = i * slotWidth;
+    const x = xSlot + (slotWidth - barWidth) / 2;
     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     rect.setAttribute('x', x);
     rect.setAttribute('y', y);
-    rect.setAttribute('width', barWidth * 0.8);
+    rect.setAttribute('width', barWidth);
     rect.setAttribute('height', barHeight);
     rect.setAttribute('fill', 'rgb(120,220,255)');
     rect.setAttribute('stroke', 'black');
@@ -74,23 +93,24 @@ function generateFish() {
     // year labels every 5 years
     if (labels[i] % 5 === 0) {
       const lbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      lbl.setAttribute('x', x + barWidth * 0.4);
-      lbl.setAttribute('y', svgRect.height - 80);
+      lbl.setAttribute('x', x + barWidth * 0.5);
+      lbl.setAttribute('y', innerHeight + 18);
       lbl.setAttribute('fill', '#fff');
-      lbl.setAttribute('font-size', '10');
-      lbl.setAttribute('text-anchor', 'end');
-      lbl.setAttribute('transform', `rotate(-60 ${x + barWidth * 0.4} ${svgRect.height - 80})`);
+      lbl.setAttribute('font-size', '11');
+      lbl.setAttribute('text-anchor', 'middle');
+      // no rotation for tick labels
+      lbl.setAttribute('transform', null);
       lbl.textContent = labels[i];
       gBars.appendChild(lbl);
     }
 
     // compute fish for this bar
     const barTop = y;
-    const barBottom = svgRect.height - 100;
+    const barBottom = innerHeight;
     const numFish = Math.floor(mapValue(data[i], 0, maxVal, 1, 20));
     for (let j = 0; j < numFish; j++) {
-      const fx = margin + i * barWidth + Math.random() * barWidth * 0.7;
-      const baseY = barTop + 10 + Math.random() * (barBottom - barTop - 20);
+      const fx = x + 4 + Math.random() * Math.max(0, barWidth - 8);
+      const baseY = barTop + 6 + Math.random() * Math.max(0, barBottom - barTop - 12);
       const f = {
         x: fx,
         baseY,
@@ -115,22 +135,22 @@ function generateFish() {
 
 function drawGrid() {
   clearChildren(gGrid);
-  const margin = svgRect.width * 0.08;
   const maxVal = Math.max(...data);
-  const step = 3000;
+  const step = Math.max(1000, Math.round(maxVal / 6));
   for (let v = 0; v <= maxVal; v += step) {
-    const y = mapValue(v, 0, maxVal, svgRect.height - 100, 100);
+    const y = mapValue(v, 0, maxVal, innerHeight, 0);
     const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    line.setAttribute('x1', margin - 5);
+    line.setAttribute('x1', 0);
     line.setAttribute('y1', y);
-    line.setAttribute('x2', svgRect.width - margin);
+    line.setAttribute('x2', innerWidth);
     line.setAttribute('y2', y);
-    line.setAttribute('stroke', 'rgba(255,255,255,0.9)');
-    line.setAttribute('stroke-dasharray', '4 4');
+    // dotted grid with reduced opacity
+    line.setAttribute('stroke', 'rgba(255,255,255,0.5)');
+    line.setAttribute('stroke-dasharray', '1 3');
     gGrid.appendChild(line);
 
     const lbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    lbl.setAttribute('x', margin - 10);
+    lbl.setAttribute('x', -10);
     lbl.setAttribute('y', y);
     lbl.setAttribute('fill', '#fff');
     lbl.setAttribute('font-size', '12');
@@ -143,8 +163,7 @@ function drawGrid() {
 
 function updateVisuals(frame = 0) {
   if (!svgEl) return;
-  const margin = svgRect.width * 0.08;
-  const barWidth = (svgRect.width - 2 * margin) / data.length;
+  const slotWidth = innerWidth / data.length;
   const maxVal = Math.max(...data);
 
   // update bar fills
@@ -172,20 +191,20 @@ function updateVisuals(frame = 0) {
   if (selectedIndex !== -1) {
     const selectedValue = data[selectedIndex];
     const valueText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    valueText.setAttribute('x', svgRect.width - margin - 240);
-    valueText.setAttribute('y', 80);
+    valueText.setAttribute('x', innerWidth - 6);
+    valueText.setAttribute('y', -6);
     valueText.setAttribute('fill', '#fff');
     valueText.setAttribute('font-size', '14');
     valueText.setAttribute('text-anchor', 'end');
     valueText.textContent = `${selectedValue.toFixed(0)}k t`;
     gUI.appendChild(valueText);
 
-    const x = margin + selectedIndex * barWidth + barWidth * 0.4;
+    const x = selectedIndex * slotWidth + slotWidth * 0.5;
     const vline = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     vline.setAttribute('x1', x);
-    vline.setAttribute('y1', 100);
+    vline.setAttribute('y1', 0);
     vline.setAttribute('x2', x);
-    vline.setAttribute('y2', svgRect.height - 100);
+    vline.setAttribute('y2', innerHeight);
     vline.setAttribute('stroke', 'rgb(255,100,100)');
     vline.setAttribute('stroke-width', '3');
     gUI.appendChild(vline);
@@ -214,11 +233,9 @@ export function initFish(svgId) {
   // event handlers
   function onPointerMove(e) {
     const rect = svgEl.getBoundingClientRect();
-    const margin = rect.width * 0.08;
-    const barWidth = (rect.width - 2 * margin) / data.length;
-    const x = e.clientX - rect.left;
-    if (x > margin && x < rect.width - margin) {
-      let idx = Math.round(mapValue(x, margin, rect.width - margin, 0, data.length - 1));
+    const x = e.clientX - rect.left - margin.left;
+    if (x > 0 && x < innerWidth) {
+      let idx = Math.floor(x / (innerWidth / data.length));
       idx = Math.min(Math.max(idx, 0), data.length - 1);
       hoverIndex = idx;
     } else {
@@ -226,8 +243,11 @@ export function initFish(svgId) {
     }
   }
 
-  svgEl.addEventListener('pointermove', onPointerMove);
-  svgEl.addEventListener('pointerleave', () => { hoverIndex = -1; });
+  // store handlers so they can be removed in disposeFish
+  pointerMoveHandler = onPointerMove;
+  pointerLeaveHandler = () => { hoverIndex = -1; };
+  svgEl.addEventListener('pointermove', pointerMoveHandler);
+  svgEl.addEventListener('pointerleave', pointerLeaveHandler);
 
   window.addEventListener('resize', resize);
   resize();
@@ -244,8 +264,9 @@ export function disposeFish() {
   if (rafId) cancelAnimationFrame(rafId);
   window.removeEventListener('resize', resize);
   if (svgEl) {
-    try { svgEl.removeEventListener('pointermove'); } catch (e) {}
-    try { svgEl.removeEventListener('pointerleave'); } catch (e) {}
+    try { if (pointerMoveHandler) svgEl.removeEventListener('pointermove', pointerMoveHandler); } catch (e) {}
+    try { if (pointerLeaveHandler) svgEl.removeEventListener('pointerleave', pointerLeaveHandler); } catch (e) {}
+    pointerMoveHandler = null; pointerLeaveHandler = null;
     clearChildren(svgEl);
     svgEl = null;
   }

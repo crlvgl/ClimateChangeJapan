@@ -54,25 +54,28 @@ export function initTemp(svgId) {
 
   const color = d3.scaleSequential().domain([yMax, -yMax]).interpolator(d3.interpolateRdBu);
 
+
   // x axis showing only every 5 years — place at bottom of chart
   const tickYears = data.map(d => d.year).filter(y => y % 5 === 0);
   const xAxis = g.append('g')
     .attr('transform', `translate(0,${height})`)
     .call(d3.axisBottom(x).tickValues(tickYears).tickFormat(d3.format('d')));
-  xAxis.selectAll('text').attr('transform', 'rotate(-45)').style('text-anchor', 'end').attr('fill', '#fff');
+  // no rotation, center ticks
+  xAxis.selectAll('text').attr('transform', null).style('text-anchor', 'middle').attr('fill', '#fff');
 
-  // make axis lines white
-  xAxis.selectAll('path, line').attr('stroke', '#fff');
+  // hide axis lines
+  xAxis.selectAll('path, line').style('opacity', 0);
 
   const yAxis = g.append('g').call(d3.axisLeft(y));
-  yAxis.selectAll('path, line').attr('stroke', '#fff');
+  yAxis.selectAll('path, line').style('opacity', 0);
   yAxis.selectAll('text').attr('fill', '#fff');
 
   // dotted horizontal grid lines
   const grid = g.append('g')
     .attr('class', 'grid')
     .call(d3.axisLeft(y).tickSize(-width).tickFormat(''));
-  grid.selectAll('line').attr('stroke', '#fff').attr('stroke-dasharray', '4 4').attr('stroke-opacity', 1.0);
+  // dotted grid with reduced opacity
+  grid.selectAll('line').attr('stroke', '#fff').attr('stroke-dasharray', '1 3').attr('stroke-opacity', 0.5);
 
   // tooltip
   const tooltip = d3.select('body').selectAll('.tooltip').data([0]);
