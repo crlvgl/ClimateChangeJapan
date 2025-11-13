@@ -127,3 +127,5 @@ dmypy.json
 # Personal ignored files
 CoralReefs.jpg
 **/*.xlsx
+**/*.xls
+.DS_Store
