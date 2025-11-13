@@ -1,33 +1,60 @@
+html, body {
+    height: 100%;
+}
+
 body {
     margin: 0;
     font-family: system-ui, sans-serif;
     background-color: #f9f9f9;
 }
 
+/* Top 3D scene occupies roughly 2/3 of the viewport */
 #three-container {
     width: 100%;
-    height: 700px;
+    height: 66vh;
     background: #22147eff;
     display: block;
 }
 
-#graph-container {
-    width: 100%;
-    height: 400px;
-    margin-top: 20px;
+/* Bottom row: three graphs share the remaining ~34% */
+.graphs-row {
     display: flex;
-    justify-content: center;
-    align-items: center;
+    width: 100%;
+    height: 34vh;
+    box-sizing: border-box;
 }
 
-svg {
-    width: 90%;
-    height: 100%;
+.graph-panel {
+    width: 33.333%;
+    padding: 8px 12px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.panel-title {
+    margin: 4px 0 6px 0;
+    font-size: 14px;
+    text-align: center;
+}
+
+.panel-svg, .panel-canvas {
+    width: 100%;
+    height: calc(100% - 28px);
+    background: white;
+    border-radius: 6px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+
+/* Make svg elements responsive */
+svg.panel-svg {
+    display: block;
 }
 
 #slider-container {
     width: 80%;
-    margin: 20px auto;
+    margin: 12px auto 24px auto;
     text-align: center;
 }
 
@@ -37,4 +64,23 @@ input[type="range"] {
 
 #year-label {
     font-weight: bold;
+}
+
+/* Highlight styles for seaTemp bars */
+.sea-bar.selected {
+    stroke: #ff4500;
+    stroke-width: 2px;
+    opacity: 1 !important;
+}
+
+/* Tooltip style used by seaTemp */
+.tooltip {
+    position: absolute;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 6px 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    pointer-events: none;
+    font-size: 13px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
 }

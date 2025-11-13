@@ -1,4 +1,6 @@
 import { initThree, initGroups, updateGroupLabels, createCubes, modelLoadedPromise, numGroups } from './threeScene.js';
+import { initFish, highlightFish } from './graph_fish.js';
+import { initTemp, highlightTemp } from './graph_temp.js';
 
 // D3 + UI app module
 // Note: D3 is included globally via a <script> tag in the HTML (d3.v7)
@@ -40,6 +42,10 @@ function updateVisualization(year) {
         focusCircle.attr('cx', xScale(point.Year)).attr('cy', yScale(point[groupSpecies[0]])).style('opacity', 1);
     }
 
+    // highlight the other graphs
+    try { highlightFish(year); } catch (e) { /* ignore */ }
+    try { highlightTemp(year); } catch (e) { /* ignore */ }
+
     const minYear = csvData.length ? d3.min(csvData, d => d.Year) : 2000;
     const maxYear = csvData.length ? d3.max(csvData, d => d.Year) : 2025;
     const maxCubes = 100;
@@ -69,6 +75,9 @@ d3.csv('data/EstimatedFishPricesByYear.csv', d => {
     csvData = rows;
     if (!csvData || csvData.length === 0) { console.warn('CSV loaded but empty.'); return; }
     buildGraph(csvData);
+    // initialize the other graphs after DOM is ready
+    try { initFish('fishChart'); } catch (e) { console.warn('initFish failed', e); }
+    try { initTemp('seaTempSvg'); } catch (e) { console.warn('initTemp failed', e); }
     const minY = d3.min(csvData, d => d.Year);
     const maxY = d3.max(csvData, d => d.Year);
     slider.min = minY; slider.max = maxY; slider.value = minY;
