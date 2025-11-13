@@ -143,7 +143,6 @@ function drawText(margin, maxVal) {
   ctx.fillText('Year', canvasW / 2, canvasH - 40);
 
   ctx.font = '18px sans-serif';
-  ctx.fillText("Japan's annual fish catch (1979–2023)", canvasW / 2, 26);
 }
 
 function loop(frame = 0) {

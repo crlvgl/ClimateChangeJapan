@@ -46,9 +46,9 @@ body {
 .panel-svg, .panel-canvas {
     width: 100%;
     height: calc(100% - 28px);
-    background: white;
+    background: #454545;
     border-radius: 6px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    color: #fff;
 }
 
 /* Make svg elements responsive */

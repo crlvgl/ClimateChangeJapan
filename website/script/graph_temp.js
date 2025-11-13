@@ -93,7 +93,7 @@ export function initTemp(svgId) {
   g.append('text')
     .attr('x', width / 2).attr('y', -10)
     .attr('class', 'title')
-    .text('Sea Surface Temperature Changes (1979–2023)');
+    // .text('Sea Surface Temperature Changes (1979–2023)');
 
   // axis labels
   g.append('text').attr('x', width / 2).attr('y', height + 40).attr('text-anchor', 'middle').text('Year');
