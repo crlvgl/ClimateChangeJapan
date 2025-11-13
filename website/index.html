@@ -594,7 +594,7 @@
         });
 
         // Load CSV and initialize graph + slider
-        d3.csv('EstimatedFishPricesByYear.csv', d => {
+        d3.csv('data/EstimatedFishPricesByYear.csv', d => {
             // parse numeric values
             const parsed = { Year: +d.Year };
             Object.keys(d).forEach(k => {
