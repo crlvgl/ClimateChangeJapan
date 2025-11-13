@@ -103,10 +103,6 @@ export function initTemp(svgId) {
     // .text('Sea Surface Temperature Changes (1979–2023)')
     .attr('fill', '#fff');
 
-  // axis labels
-  g.append('text').attr('x', width / 2).attr('y', height + 40).attr('text-anchor', 'middle').attr('fill', '#fff').text('Year');
-  g.append('text').attr('transform', 'rotate(-90)').attr('x', -height / 2).attr('y', -34).attr('text-anchor', 'middle').attr('fill', '#fff').text('Sea Temperature (°C)');
-
   // value label (top-right)
   valueLabel = g.append('text').attr('class', 'value-label').attr('x', width - 6).attr('y', -6).attr('text-anchor', 'end').attr('fill', '#fff').style('font-size', '14px');
 
@@ -124,7 +120,7 @@ export function highlightTemp(year) {
   // update top-right value label
   if (valueLabel) {
     const found = data.find(d => d.year === yInt);
-    if (found) valueLabel.text(`${found.year}: ${found.temp.toFixed(2)} °C`);
+    if (found) valueLabel.text(`${found.temp.toFixed(2)} °C`);
     else valueLabel.text('');
   }
 }

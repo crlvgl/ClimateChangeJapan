@@ -105,7 +105,7 @@ function drawBars(margin, barWidth, maxVal) {
     } else if (i === selectedIndex) {
       ctx.fillStyle = 'rgb(120,220,255)';
     } else {
-      ctx.fillStyle = 'rgba(200,200,200,0.4)';
+      ctx.fillStyle = 'rgba(120,220,255,0.43)';
     }
 
     ctx.strokeStyle = 'black';
@@ -144,12 +144,7 @@ function drawText(margin, maxVal) {
   ctx.save();
   ctx.translate(margin - 70, canvasH / 2);
   ctx.rotate(-Math.PI / 2);
-  ctx.textAlign = 'center';
-  ctx.fillText("Fish catch (1000t)", 0, 0);
   ctx.restore();
-
-  ctx.textAlign = 'center';
-  ctx.fillText('Year', canvasW / 2, canvasH - 40);
 }
 
 function loop(frame = 0) {
@@ -166,14 +161,13 @@ function loop(frame = 0) {
   drawText(margin, maxVal);
 
   if (selectedIndex !== -1) {
-    const selectedYear = labels[selectedIndex];
     const selectedValue = data[selectedIndex];
     // value indicator (top-right) — white and concise
     ctx.fillStyle = '#fff';
     ctx.font = '14px sans-serif';
-    ctx.textAlign = 'left';
+    ctx.textAlign = 'right';
     const canvasW = canvas.width / devicePixelRatio;
-    ctx.fillText(`Year: ${selectedYear} — ${selectedValue.toFixed(0)}k t`, canvasW - margin - 240, 80);
+    ctx.fillText(`${selectedValue.toFixed(0)}k t`, canvasW - margin - 240, 80);
 
     ctx.strokeStyle = 'rgb(255,100,100)';
     ctx.lineWidth = 3;

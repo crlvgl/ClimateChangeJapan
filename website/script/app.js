@@ -63,7 +63,7 @@ function updateVisualization(year) {
         const yVal = point[key] !== undefined ? point[key] : (point[groupSpecies[0]] !== undefined ? point[groupSpecies[0]] : null);
         if (yVal !== null) {
             focusCircle.attr('cx', xScale(point.Year)).attr('cy', yScale(yVal)).style('opacity', 1);
-            if (valueLabel) valueLabel.text(`${point.Year}: ${yVal}`);
+            if (valueLabel) valueLabel.text(`${yVal}¥/100g`);
         } else {
             focusCircle.style('opacity', 0);
             if (valueLabel) valueLabel.text('');
