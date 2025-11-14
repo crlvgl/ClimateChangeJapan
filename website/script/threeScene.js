@@ -11,6 +11,13 @@ let fishAnimations = [];
 let mixers = [];
 const clock = new THREE.Clock();
 
+// video background
+let videoElement = null;
+let videoTexture = null;
+let videoMesh = null;
+const defaultCameraZ = 20; // initial camera z in initThree
+const basePlaneDistance = 80; // base distance factor for background plane
+
 // grouping/labels
 export const numGroups = 3;
 const groups = [];
@@ -19,7 +26,7 @@ function createTextTexture(text, opts = {}) {
     const font = opts.font || '28px Arial';
     const padding = opts.padding || 16;
     const fg = opts.fg || '#ffffff';
-    const bg = opts.bg || 'rgba(0,0,0,0.5)';
+    const bg = opts.bg || 'rgba(0, 0, 0, 0.3)';
 
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
@@ -98,6 +105,16 @@ const swimBounds = {
 };
 const spawnFlipY = Math.PI;
 
+// label scaling when camera distance changes
+const labelScaleConfig = {
+    min: 0.6, // smallest label scale (for close fish)
+    max: 2.0, // largest label scale (for far fish)
+    // distances (in world units) used to map scale: at or below minDist -> min scale,
+    // at or above maxDist -> max scale. values in-between are linearly interpolated.
+    minDist: 8,
+    maxDist: 28
+};
+
 export function clearCubes() {
     cubes.forEach(cube => scene.remove(cube));
     cubes = [];
@@ -157,6 +174,8 @@ export function createCubes(count) {
         label.scale.set(1.4, 0.6, 1);
         label.material.depthTest = false;
         wrapper.add(label);
+        // store a base scale so we can scale relative to it later
+        label.userData.baseScale = new THREE.Vector3(1.4, 0.6, 1).clone();
 
         fishData.push({ wrapper, velocity: vel, speed, groupIndex, label });
     }
@@ -191,10 +210,184 @@ function animate() {
         w.rotateY(spawnFlipY);
 
         if (f.label) f.label.quaternion.copy(camera.quaternion);
+
+        // scale label based on distance to camera (farther -> larger, closer -> smaller)
+        if (f.label) {
+            const camPos = camera.position;
+            // use world position of the label
+            const labelWorldPos = new THREE.Vector3();
+            f.label.getWorldPosition(labelWorldPos);
+            const dist = camPos.distanceTo(labelWorldPos);
+            const t = THREE.MathUtils.clamp((dist - labelScaleConfig.minDist) / (labelScaleConfig.maxDist - labelScaleConfig.minDist), 0, 1);
+            const scaleFactor = THREE.MathUtils.lerp(labelScaleConfig.min, labelScaleConfig.max, t);
+            const base = f.label.userData.baseScale || new THREE.Vector3(1.4, 0.6, 1);
+            f.label.scale.set(base.x * scaleFactor, base.y * scaleFactor, base.z * scaleFactor);
+        }
     }
 
     if (controls) controls.update();
     renderer.render(scene, camera);
+}
+
+// Create a hidden video element, VideoTexture and a plane mesh to show as background.
+function createVideoBackground() {
+    try {
+        if (videoMesh) return; // already created
+
+        videoElement = document.createElement('video');
+        videoElement.src = 'video/ambiance.mp4';
+        videoElement.crossOrigin = 'anonymous';
+        videoElement.muted = true; // allow autoplay
+        videoElement.loop = true;
+        videoElement.playsInline = true;
+        videoElement.preload = 'auto';
+        videoElement.style.display = 'none';
+        document.body.appendChild(videoElement);
+
+        // try to play (may return a promise)
+        const p = videoElement.play();
+        if (p && p.then) p.catch(() => { /* ignore autoplay rejections */ });
+
+        videoTexture = new THREE.VideoTexture(videoElement);
+        videoTexture.minFilter = THREE.LinearFilter;
+        videoTexture.magFilter = THREE.LinearFilter;
+        videoTexture.format = THREE.RGBAFormat;
+        videoTexture.encoding = THREE.sRGBEncoding;
+
+        const geo = new THREE.PlaneGeometry(1, 1);
+        const mat = new THREE.MeshBasicMaterial({ map: videoTexture, toneMapped: false });
+        videoMesh = new THREE.Mesh(geo, mat);
+        videoMesh.frustumCulled = false;
+        // put it behind by default; updateVideoPlaneScale() will position it relative to camera
+        videoMesh.renderOrder = -10;
+        scene.add(videoMesh);
+
+        // initial sizing
+        updateVideoPlaneScale();
+    } catch (err) {
+        console.warn('Could not create video background:', err);
+    }
+}
+
+function updateVideoPlaneScale() {
+    if (!videoMesh || !camera || !renderer) return;
+
+    // center plane on controls target (if available) so background follows panning target
+    const target = (controls && controls.target) ? controls.target : new THREE.Vector3(0, 0, 0);
+    // plane distance from camera scales with camera z so the plane appears to "zoom"
+    const planeDistanceFromCamera = basePlaneDistance * (camera.position.z / defaultCameraZ);
+    const planeZ = camera.position.z - planeDistanceFromCamera;
+
+    videoMesh.position.set(target.x, target.y, planeZ);
+
+    // compute size so that plane covers the camera frustum at that distance
+    const canvasWidth = renderer.domElement.clientWidth || window.innerWidth;
+    const canvasHeight = renderer.domElement.clientHeight || window.innerHeight;
+    const aspect = canvasWidth / canvasHeight;
+    const vFOV = THREE.MathUtils.degToRad(camera.fov);
+    const height = 2 * Math.tan(vFOV / 2) * Math.abs(camera.position.z - planeZ);
+    const width = height * aspect;
+
+    videoMesh.scale.set(width, height, 1);
+    // ensure the plane faces the camera
+    videoMesh.lookAt(camera.position);
+}
+
+// Try to autoplay with sound. If the browser blocks autoplay with sound,
+// fall back to muted playback and show a small "Enable audio" button so
+// the user can allow sound with a click (user gesture).
+async function attemptAutoplayWithSound() {
+    if (!videoElement) return;
+    try {
+        // try to unmute and play at full volume
+        videoElement.muted = false;
+        videoElement.volume = 1.0;
+        const p = videoElement.play();
+        if (p && p.then) await p;
+        // success: we're playing with sound
+        return true;
+    } catch (err) {
+        // autoplay with sound blocked. fall back to muted playback and show a button
+        try {
+            videoElement.muted = true;
+            videoElement.volume = 1.0;
+            const p2 = videoElement.play();
+            if (p2 && p2.then) p2.catch(() => {});
+        } catch (e) {
+            // ignore
+        }
+
+        // create a small enable-audio button if not already present
+        if (!document.getElementById('enable-audio-btn')) {
+            const btn = document.createElement('button');
+            btn.id = 'enable-audio-btn';
+            btn.textContent = 'Enable audio';
+            Object.assign(btn.style, {
+                position: 'fixed',
+                left: '12px',
+                bottom: '12px',
+                zIndex: 9999,
+                padding: '8px 12px',
+                background: 'rgba(0,0,0,0.6)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer'
+            });
+            btn.addEventListener('click', async () => {
+                try {
+                    if (!videoElement) return;
+                    videoElement.muted = false;
+                    videoElement.volume = 1.0;
+                    const p3 = videoElement.play();
+                    if (p3 && p3.then) await p3;
+                } catch (e) {
+                    console.warn('Enable audio click failed', e);
+                }
+                // remove button after attempt
+                try { btn.remove(); } catch (e) { }
+            });
+            document.body.appendChild(btn);
+        }
+        return false;
+    }
+}
+
+// Volume control mapping for slider years
+const YEAR_MIN = 1979;
+const YEAR_MAX = 2023;
+
+function computeVolumeFromYear(year) {
+    const y = Number(year);
+    if (Number.isNaN(y)) return 1.0;
+    const t = (y - YEAR_MIN) / (YEAR_MAX - YEAR_MIN);
+    // volume 1.0 at YEAR_MIN, 0.0 at YEAR_MAX
+    return 1.0 - THREE.MathUtils.clamp(t, 0, 1);
+}
+
+// Call this from your slider change handler. Exports the function so other scripts can call it.
+export function setVideoVolumeForYear(year) {
+    try {
+        if (!videoElement) createVideoBackground();
+        const vol = computeVolumeFromYear(year);
+        if (!videoElement) return;
+
+        if (vol <= 0.0001) {
+            // mute to be explicit
+            videoElement.volume = 0;
+            videoElement.muted = true;
+        } else {
+            // slider interaction is a user gesture; unmute and set volume
+            videoElement.muted = false;
+            // clamp volume to [0,1]
+            videoElement.volume = Math.max(0, Math.min(1, vol));
+            // ensure playback (may be required if autoplay was prevented initially)
+            const p = videoElement.play();
+            if (p && p.then) p.catch(() => { /* ignore play failures */ });
+        }
+    } catch (err) {
+        console.warn('Error updating video volume for year', year, err);
+    }
 }
 
 // Promise that resolves when the GLTF model is loaded
@@ -210,6 +403,12 @@ export function initThree(containerId = 'three-container') {
     renderer.outputEncoding = THREE.sRGBEncoding;
     renderer.setSize(threeContainer.clientWidth, threeContainer.clientHeight);
     threeContainer.appendChild(renderer.domElement);
+
+    // create async video background (non-blocking)
+    createVideoBackground();
+    // attempt to autoplay with sound (best-effort). If blocked, a button will appear.
+    // don't await here to avoid blocking init.
+    setTimeout(() => { try { attemptAutoplayWithSound(); } catch (e) { /* ignore */ } }, 50);
 
     const light = new THREE.AmbientLight(0xffffff, 1.2);
     scene.add(light);
@@ -244,6 +443,8 @@ export function initThree(containerId = 'three-container') {
         const sensitivity = 0.02; // tweak for desired feel
         const dz = e.deltaY * sensitivity;
         camera.position.z = THREE.MathUtils.clamp(camera.position.z + dz, _minCameraZ, _maxCameraZ);
+        // update the background size/position to match new camera distance
+        updateVideoPlaneScale();
     }
     // Attach to renderer DOM element so interactions are limited to the 3D canvas
     renderer.domElement.addEventListener('wheel', _onWheelZoom, { passive: false });
@@ -300,6 +501,15 @@ export function initThree(containerId = 'three-container') {
     }, undefined, err => {
         console.error('Error loading GLTF model:', err);
         if (_modelLoadedResolve) _modelLoadedResolve();
+    });
+
+    // handle window resize to update renderer, camera and background plane
+    window.addEventListener('resize', () => {
+        if (!threeContainer) return;
+        camera.aspect = threeContainer.clientWidth / threeContainer.clientHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(threeContainer.clientWidth, threeContainer.clientHeight);
+        updateVideoPlaneScale();
     });
 
     animate();

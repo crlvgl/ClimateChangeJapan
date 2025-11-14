@@ -1,4 +1,4 @@
-import { initThree, initGroups, updateGroupLabels, createCubes, modelLoadedPromise, numGroups } from './threeScene.js';
+import { initThree, initGroups, updateGroupLabels, createCubes, modelLoadedPromise, numGroups, setVideoVolumeForYear } from './threeScene.js';
 import { initFish, highlightFish } from './graph_fish.js';
 import { initTemp, highlightTemp } from './graph_temp.js';
 
@@ -99,6 +99,11 @@ function updateVisualization(year) {
 
 slider.addEventListener('input', e => { updateVisualization(+e.target.value); });
 
+// wire slider to video volume mapping
+slider.addEventListener('input', e => {
+    try { setVideoVolumeForYear(+e.target.value); } catch (err) { console.warn('setVideoVolumeForYear failed', err); }
+});
+
 // Load CSV and initialize graph + slider
 d3.csv('data/EstimatedFishPricesByYear.csv', d => {
     const parsed = { Year: +d.Year };
@@ -115,6 +120,8 @@ d3.csv('data/EstimatedFishPricesByYear.csv', d => {
     const maxY = d3.max(csvData, d => d.Year);
     slider.min = minY; slider.max = maxY; slider.value = minY;
     updateVisualization(+slider.value);
+    // set initial video volume based on initial slider value (best-effort)
+    try { setVideoVolumeForYear(+slider.value); } catch (err) { console.warn('setVideoVolumeForYear initial call failed', err); }
     // also refresh after model loads so GLTF-based instances show properly
     modelLoadedPromise.then(() => { updateVisualization(+slider.value); });
 }).catch(err => { console.error('Failed to load CSV:', err); });
