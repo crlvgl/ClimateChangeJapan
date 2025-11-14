@@ -61,6 +61,14 @@ body {
     color: #fff;
 }
 
+.panel-svg.left {
+    transform: translateY(7px);
+}
+
+.panel-svg.middle {
+    transform: translateY(5px);
+}
+
 /* Make svg elements responsive */
 svg.panel-svg {
     display: block;
