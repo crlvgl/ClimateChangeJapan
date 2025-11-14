@@ -45,6 +45,14 @@ body {
     color: #fff;
 }
 
+.panel-title.middle {
+    margin-left: -18px;
+}
+
+.panel-title.right {
+    margin-left: -6px;
+}
+
 .panel-svg, .panel-canvas {
     width: 100%;
     height: calc(100% - 28px);
@@ -63,7 +71,7 @@ svg.panel-svg {
     left: 50%;
     transform: translateX(-50%);
     bottom: 12px;
-    width: min(88%, 960px);
+    width: min(88%, 800px);
     display: flex;
     align-items: center;
     gap: 12px;
@@ -90,7 +98,7 @@ svg.panel-svg {
 #slider-overlay input[type="range"] {
     -webkit-appearance: none;
     appearance: none;
-    width: 420px;
+    width: 100%;
     max-width: calc(100% - 140px); 
     height: 14px;
     background: transparent;
