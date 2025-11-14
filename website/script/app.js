@@ -1,4 +1,4 @@
-import { initThree, initGroups, updateGroupLabels, createCubes, modelLoadedPromise, numGroups, setVideoVolumeForYear } from './threeScene.js';
+import { initThree, initGroups, updateGroupLabels, createCubes, modelLoadedPromise, numGroups, setVideoVolumeForYear, setVideoOpacity } from './threeScene.js';
 import { initFish, highlightFish } from './graph_fish.js';
 import { initTemp, highlightTemp } from './graph_temp.js';
 
@@ -6,6 +6,8 @@ import { initTemp, highlightTemp } from './graph_temp.js';
 // Note: D3 is included globally via a <script> tag in the HTML (d3.v7)
 
 initThree('three-container');
+
+setVideoOpacity(0.75); // set initial video opacity to 50%
 
 // D3 graph variables
 const svg = d3.select('#graph');

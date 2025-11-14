@@ -255,6 +255,8 @@ function createVideoBackground() {
         videoTexture.encoding = THREE.sRGBEncoding;
 
         const geo = new THREE.PlaneGeometry(1, 1);
+        // const mat = new THREE.MeshBasicMaterial({ map: videoTexture, toneMapped: false });
+        // allow opacity changes if needed
         const mat = new THREE.MeshBasicMaterial({ map: videoTexture, toneMapped: false });
         videoMesh = new THREE.Mesh(geo, mat);
         videoMesh.frustumCulled = false;
@@ -387,6 +389,16 @@ export function setVideoVolumeForYear(year) {
         }
     } catch (err) {
         console.warn('Error updating video volume for year', year, err);
+    }
+}
+
+export function setVideoOpacity(opacity) {
+    const v = Math.max(0, Math.min(1, Number(opacity) || 0));
+    if (!videoMesh) createVideoBackground();
+    if (videoMesh && videoMesh.material) {
+        videoMesh.material.transparent = (v < 1.0);
+        videoMesh.material.opacity = v;
+        videoMesh.material.needsUpdate = true;
     }
 }
 
