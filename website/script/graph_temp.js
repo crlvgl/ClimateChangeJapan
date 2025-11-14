@@ -61,14 +61,18 @@ export function initTemp(svgId) {
     .attr('transform', `translate(0,${height})`)
     .call(d3.axisBottom(x).tickValues(tickYears).tickFormat(d3.format('d')));
   // no rotation, center ticks
-  xAxis.selectAll('text').attr('transform', null).style('text-anchor', 'middle').attr('fill', '#fff');
+  xAxis.selectAll('text')
+    .attr('transform', null)
+    .style('text-anchor', 'middle')
+    .attr('fill', '#fff')
+    .attr('font-size', '11px');
 
   // hide axis lines
   xAxis.selectAll('path, line').style('opacity', 0);
 
   const yAxis = g.append('g').call(d3.axisLeft(y));
   yAxis.selectAll('path, line').style('opacity', 0);
-  yAxis.selectAll('text').attr('fill', '#fff');
+  yAxis.selectAll('text').attr('fill', '#fff').attr('font-size', '11px');
 
   // dotted horizontal grid lines
   const grid = g.append('g')

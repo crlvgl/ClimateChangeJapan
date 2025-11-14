@@ -36,11 +36,15 @@ function buildGraph(dataRows) {
     const tickYears = d3.range(minY, maxY + 1, 5);
     xAxisGroup = g.append('g').attr('transform', `translate(0,${innerHeight})`).call(d3.axisBottom(xScale).tickValues(tickYears).tickFormat(d3.format('d')));
     xAxisGroup.selectAll('path, line').style('opacity', 0);
-    xAxisGroup.selectAll('text').attr('fill', '#fff').attr('transform', null).style('text-anchor', 'middle');
+    xAxisGroup.selectAll('text')
+        .attr('fill', '#fff')
+        .attr('transform', null)
+        .style('text-anchor', 'middle')
+        .attr('font-size', '11px');
 
     yAxisGroup = g.append('g').call(d3.axisLeft(yScale));
     yAxisGroup.selectAll('path, line').style('opacity', 0);
-    yAxisGroup.selectAll('text').attr('fill', '#fff');
+    yAxisGroup.selectAll('text').attr('fill', '#fff').attr('font-size', '11px');
 
     // dotted horizontal grid
     const grid = g.append('g').attr('class', 'grid').call(d3.axisLeft(yScale).tickSize(-innerWidth).tickFormat(''));
