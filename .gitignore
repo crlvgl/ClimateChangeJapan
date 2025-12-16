@@ -129,5 +129,5 @@ CoralReefs.jpg
 **/*.xlsx
 **/*.xls
 .DS_Store
-.mp4
-.webm
+**/*.mp4
+**/*.webm
