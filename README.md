@@ -11,7 +11,8 @@ A short, cross-disciplinary project exploring how ocean temperature changes rela
 
 ## Features
 - **Interactive charts**: Visualize sea temperature trends and fish catch data.
-- **3D visualization**: A small Three.js scene showcasing a bluefin tuna model.
+- **3D visualization**: A small Three.js scene showcasing a fish model with data-driven audio-visual elements.
+- **Acoustic representation**: Ambient video background with audio linked to data points.
 - **Cleaned datasets**: Curated CSVs for quick loading and analysis.
 
 ## Quick Start
@@ -21,6 +22,7 @@ A short, cross-disciplinary project exploring how ocean temperature changes rela
 - **Data files**:
 	- Website data: [website/data/EstimatedFishPricesByYear.csv](website/data/EstimatedFishPricesByYear.csv)
 	- Source datasets: [datasets/](datasets/) includes cleaned and raw CSVs used for analysis.
+ > Note: The video used as ambient background and for acoustic representation of the data is not included due to size constraints on the repository. For full experience, please download a video of your choice and add it to the `website/video/` folder as `ambiance.mp4`.
 
 ## Datasets
 - [datasets/CleanedFishPrice.csv](datasets/CleanedFishPrice.csv): Cleaned fish price data used in charts/analysis.
